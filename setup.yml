@@ -1,0 +1,50 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    user: usr_commerce
+    password: commerce1
+    db_host: localhost
+
+  tasks:
+    - name: Deploy and init PostgreSQL Database
+      community.docker.docker_compose:
+        project_src: ./
+      register: docker_compose_result
+
+    - name: Wait until database is available
+      pause:
+        minutes: 2
+      when: docker_compose_result.changed
+
+    - name: Create users and grant permissions
+      community.postgresql.postgresql_script:
+        db: contoso
+        path: ./scripts/users.sql
+        login_user: "{{ user }}"
+        login_password: "{{ password }}"
+        login_host: "{{ db_host }}"
+
+    - name: Partitioning customers table
+      community.postgresql.postgresql_script:
+        db: contoso
+        path: ./scripts/customers_partition.sql
+        login_user: "{{ user }}"
+        login_password: "{{ password }}"
+        login_host: "{{ db_host }}"   
+
+    - name: Partitioning orders table
+      community.postgresql.postgresql_script:
+        db: contoso
+        path: ./scripts/orders_partition.sql
+        login_user: "{{ user }}"
+        login_password: "{{ password }}"
+        login_host: "{{ db_host }}"   
+
+    - name: Creating indexes and constraints to tables
+      community.postgresql.postgresql_script:
+        db: contoso
+        path: ./scripts/indexes_and_constraints.sql
+        login_user: "{{ user }}"
+        login_password: "{{ password }}"
+        login_host: "{{ db_host }}"

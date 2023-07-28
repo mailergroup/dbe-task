@@ -1,0 +1,13 @@
+version: "3.8"
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: usr_commerce
+      POSTGRES_PASSWORD: commerce1
+      POSTGRES_DB: contoso
+    ports:
+      - 5432:5432
+    volumes:
+      - ./config/init.sql:/docker-entrypoint-initdb.d/init.sql
