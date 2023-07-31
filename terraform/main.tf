@@ -11,7 +11,7 @@ resource "postgresql_role" "bob" {
   password        = random_id.password-user-bob.hex
   login           = true
   create_database = "false"
-  depends_on  = [random_id.password-user-bob]
+  depends_on      = [random_id.password-user-bob]
 }
 
 resource "postgresql_role" "dave" {
@@ -19,8 +19,8 @@ resource "postgresql_role" "dave" {
   password        = random_id.password-user-dave.hex
   login           = true
   create_database = "false"
-  depends_on  = [random_id.password-user-dave]
-  
+  depends_on      = [random_id.password-user-dave]
+
 }
 
 resource "postgresql_grant" "priv-table-for-bob" {
@@ -28,7 +28,7 @@ resource "postgresql_grant" "priv-table-for-bob" {
   role        = postgresql_role.bob.name
   schema      = var.schema
   object_type = "table"
-  objects     = ["order_items", "orders","customers","products"]
+  objects     = ["order_items", "orders", "customers", "products"]
   privileges  = ["SELECT"]
   depends_on  = [postgresql_role.bob]
 }
@@ -47,8 +47,8 @@ resource "postgresql_grant" "priv-table-for-dave" {
   role        = postgresql_role.dave.name
   schema      = var.schema
   object_type = "table"
-  objects     = ["order_items", "orders","customers","products"]
-  privileges  = ["SELECT","UPDATE","DELETE","INSERT"]
+  objects     = ["order_items", "orders", "customers", "products"]
+  privileges  = ["SELECT", "UPDATE", "DELETE", "INSERT"]
   depends_on  = [postgresql_grant.priv-schema-for-bob]
 }
 
