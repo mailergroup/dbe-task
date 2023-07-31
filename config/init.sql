@@ -1,45 +1,91 @@
+-- DDL for the new shop table
+CREATE TABLE shop_stores (
+  shop_id INT PRIMARY KEY,
+  shop_name  VARCHAR(100),
+  description VARCHAR(500)
+)
+WITH (FILLFACTOR = 70);
+
 CREATE TABLE customers (
   customer_id INT PRIMARY KEY,
-  shop_id INT,
-  first_name VARCHAR(50),
-  last_name VARCHAR(50),
-  email VARCHAR(100),
+  shop_id INT NOT NULL,
+  first_name VARCHAR(50) NOT NULL,
+  last_name VARCHAR(50) NOT NULL,
+  email VARCHAR(100) NOT NULL,
   address VARCHAR(200),
-  phone_number VARCHAR(20)
-);
+  phone_number VARCHAR(20),
+  CONSTRAINT fk_customers_shop_stores FOREIGN KEY(shop_id) REFERENCES public.shop_stores (shop_id)
+) partition by range (customer_id);
+
+CREATE INDEX IF NOT EXISTS customers_customer_id_index on customers using btree (customer_id);
+CREATE INDEX IF NOT EXISTS customers_fk_shop_id_index on customers using btree (shop_id);
+
+SELECT create_parent( p_parent_table => 'public.customers', p_control => 'customer_id', p_type => 'native', p_interval=> '1000', p_premake => 5);
+
+UPDATE part_config SET infinite_time_partitions = true,    retention_keep_table=true WHERE parent_table = 'public.customers';
+SELECT cron.schedule('@daily', $$CALL partman.run_maintenance_proc()$$);
 
 CREATE TABLE orders (
   order_id INT PRIMARY KEY,
-  customer_id INT,
-  shop_id INT,
-  order_date DATE,
-  total_amount DECIMAL(10, 2)
-);
+  customer_id INT NOT NULL,
+  shop_id INT NOT NULL,
+  order_date DATE NOT NULL,
+  total_amount DECIMAL(10, 2),
+  CONSTRAINT fk_orders_customers FOREIGN KEY(customer_id) REFERENCES public.customers (customer_id) ,
+	CONSTRAINT fk_orders_shop_stores FOREIGN KEY(shop_id) REFERENCES public.shop_stores (shop_id)
+) 
+WITH (FILLFACTOR = 70);
+
+CREATE INDEX IF NOT EXISTS orders_fk_customer_id_index ON public.orders using btree (customer_id);
+CREATE INDEX IF NOT EXISTS orders_fk_shop_id_index ON public.orders using btree (shop_id);
+CREATE INDEX IF NOT EXISTS orders_order_date_index  ON public.orders using btree (order_date);
+CREATE INDEX IF NOT EXISTS orders_order_date_order_date_idx on public.orders USING btree  (order_date , order_date);
+CREATE INDEX IF NOT EXISTS orders_customer_id_order_date_index ON public.orders using btree (customer_id,order_date);
 
 CREATE TABLE products (
   product_id INT PRIMARY KEY,
-  shop_id INT,
-  product_name VARCHAR(100),
-  price INT,
-  description VARCHAR(500)
-);
+  shop_id INT NOT NULL,
+  product_name VARCHAR(100) NOT NULL,
+  price INT NOT NULL,
+  description VARCHAR(500),
+  CONSTRAINT fk_products_shop_stores FOREIGN KEY(shop_id) REFERENCES public.shop_stores (shop_id)
+)WITH (FILLFACTOR = 70);
+             
+CREATE INDEX CONCURRENTLY IF NOT EXISTS products_product_id_index on products using btree (product_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS products_fk_shop_id_index on products using btree (shop_id);
 
 CREATE TABLE order_Items (
   order_item_id INT PRIMARY KEY,
-  order_id INT,
-  product_id INT,
-  shop_id INT,
+  order_id INT NOT NULL,
+  product_id INT NOT NULL,
+  shop_id INT NOT NULL,
   quantity INT,
-  subtotal DECIMAL(10, 2)
+  subtotal DECIMAL(10, 2),
+  CONSTRAINT fk_customers_shop_stores FOREIGN KEY(shop_id) REFERENCES public.shop_stores (shop_id),
+ CONSTRAINT fk_customers_orders FOREIGN KEY(order_id) REFERENCES public.orders (order_id),
+CONSTRAINT fk_customers_products FOREIGN KEY(product_id) REFERENCES public.products  (product_id)
 );
+
+CREATE INDEX CONCURRENTLY IF NOT EXISTS order_Items_fk_order_id_index on order_Items using btree (order_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS order_Items_fk_product_id_index on order_Items using btree (product_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS order_Items_fk_shop_id_index on order_Items using btree (shop_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS order_Items_quantity_index on order_Items using btree (quantity);
 
 -- Specify the desired number of rows for each table here
 DO $$DECLARE
   shop_count INT := 100;
+  shop_stores_count INT := 101;
   customer_count INT := 3000;
   order_count INT := 20000;
   product_count INT := 1000;
 BEGIN
+  -- Generating sample data for the shop_store table
+  INSERT INTO shop_stores (shop_id, shop_name, description)
+        select  row_number() OVER () as shop_id,
+	        'Shop' || row_number() OVER () as shop_name,
+      'Description for Shop' || row_number() OVER () as description
+  FROM generate_series(1, shop_stores_count) AS t;
+
   -- Generating sample data for the customers table
   INSERT INTO customers (customer_id, shop_id, first_name, last_name, email, address, phone_number)
   SELECT

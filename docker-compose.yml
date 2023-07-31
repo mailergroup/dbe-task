@@ -1,0 +1,14 @@
+version: "3"
+
+services:
+  database:
+      build: .
+      image: "fariasbrunobrn/postgres-fully-extension:latest"
+      environment:
+        POSTGRES_USER: ecommerce_user
+        POSTGRES_PASSWORD: a_very_powerfull_password
+        POSTGRES_DB: ecommerce_database
+      ports:
+        - 5432:5432
+volumes:
+  database:
